@@ -420,6 +420,9 @@ struct _VteTerminalPrivate {
 	gboolean cursor_moved_pending;
 	gboolean contents_changed_pending;
 
+	/* command termination */
+	gchar *cmdline_changed;
+
 	/* window name changes */
         gchar *window_title;
 	gchar *window_title_changed;

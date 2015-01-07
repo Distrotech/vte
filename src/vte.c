@@ -8559,6 +8559,8 @@ vte_terminal_finalize(GObject *object)
 
 	remove_update_timeout (terminal);
 
+	g_free(terminal->pvt->cmdline_changed);
+
 	/* discard title updates */
         g_free(terminal->pvt->window_title);
         g_free(terminal->pvt->window_title_changed);
@@ -10284,6 +10286,7 @@ vte_terminal_class_init(VteTerminalClass *klass)
 	klass->child_exited = NULL;
 	klass->encoding_changed = NULL;
 	klass->char_size_changed = NULL;
+	klass->command_terminated = NULL;
 	klass->window_title_changed = NULL;
 	klass->icon_title_changed = NULL;
 	klass->selection_changed = NULL;
@@ -10356,6 +10359,23 @@ vte_terminal_class_init(VteTerminalClass *klass)
                      g_cclosure_marshal_VOID__INT,
                      G_TYPE_NONE,
                      1, G_TYPE_INT);
+
+        /**
+         * VteTerminal::command-terminated:
+         * @vteterminal: the object which received the signal
+         * @cmdline: the full command line
+         *
+         * Emitted when a foregroud process running in the terminal terminates.
+         */
+        g_signal_new(I_("command-terminated"),
+                     G_OBJECT_CLASS_TYPE(klass),
+                     G_SIGNAL_RUN_LAST,
+                     G_STRUCT_OFFSET(VteTerminalClass, command_terminated),
+                     NULL,
+                     NULL,
+                     g_cclosure_marshal_VOID__STRING,
+                     G_TYPE_NONE,
+                     1, G_TYPE_STRING);
 
         /**
          * VteTerminal::window-title-changed:
@@ -12360,6 +12380,15 @@ need_processing (VteTerminal *terminal)
 	return _vte_incoming_chunks_length (terminal->pvt->incoming) != 0;
 }
 
+static void
+vte_terminal_emit_command_terminated(VteTerminal *terminal)
+{
+	_vte_debug_print(VTE_DEBUG_SIGNALS,
+			"Emitting `command-terminated'.\n");
+	g_signal_emit_by_name(terminal, "command-terminated",
+			      terminal->pvt->cmdline_changed);
+}
+
 /* Emit an "icon-title-changed" signal. */
 static void
 vte_terminal_emit_icon_title_changed(VteTerminal *terminal)
@@ -12406,6 +12435,12 @@ vte_terminal_emit_pending_signals(VteTerminal *terminal)
         g_object_freeze_notify(object);
 
 	vte_terminal_emit_adjustment_changed (terminal);
+
+	if (terminal->pvt->cmdline_changed) {
+		vte_terminal_emit_command_terminated(terminal);
+		g_free (terminal->pvt->cmdline_changed);
+		terminal->pvt->cmdline_changed = NULL;
+	}
 
 	if (terminal->pvt->window_title_changed) {
 		g_free (terminal->pvt->window_title);

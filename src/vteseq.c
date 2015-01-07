@@ -2330,6 +2330,50 @@ vte_sequence_handler_set_current_file_uri (VteTerminal *terminal, GValueArray *p
         terminal->pvt->current_file_uri_changed = uri;
 }
 
+static void
+vte_sequence_handler_command_terminated (VteTerminal *terminal, GValueArray *params)
+{
+	GValue *value;
+	char *cmdline = NULL;
+
+	/* Get the string parameter's value. */
+	value = g_value_array_get_nth(params, 0);
+	if (value) {
+		if (G_VALUE_HOLDS_LONG(value)) {
+			/* Convert the long to a string. */
+			cmdline = g_strdup_printf("%ld", g_value_get_long(value));
+		} else
+		if (G_VALUE_HOLDS_STRING(value)) {
+			/* Copy the string into the buffer. */
+			cmdline = g_value_dup_string(value);
+		} else
+		if (G_VALUE_HOLDS_POINTER(value)) {
+			cmdline = vte_ucs4_to_utf8 (terminal, g_value_get_pointer (value));
+		}
+		if (cmdline != NULL) {
+			char *p, *validated;
+			const char *end;
+
+			/* Validate the text. */
+			g_utf8_validate(cmdline, strlen(cmdline), &end);
+			validated = g_strndup(cmdline, end - cmdline);
+
+			/* No control characters allowed. */
+			for (p = validated; *p != '\0'; p++) {
+				if ((*p & 0x1f) == *p) {
+					*p = ' ';
+				}
+			}
+
+			g_free (terminal->pvt->cmdline_changed);
+			terminal->pvt->cmdline_changed = g_strdup (validated);
+
+			g_free (validated);
+			g_free(cmdline);
+		}
+	}
+}
+
 /* Restrict the scrolling region. */
 static void
 vte_sequence_handler_set_scrolling_region_from_start (VteTerminal *terminal, GValueArray *params)
