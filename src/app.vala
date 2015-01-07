@@ -102,6 +102,8 @@ class Window : Gtk.ApplicationWindow
     if (App.Options.object_notifications)
       terminal.notify.connect(notify_cb);
 
+    terminal.command_terminated.connect(command_terminated_cb);
+
     /* Settings */
     if (App.Options.no_double_buffer)
       terminal.set_double_buffered(true);
@@ -506,6 +508,11 @@ class Window : Gtk.ApplicationWindow
   private void window_title_changed_cb(Vte.Terminal terminal)
   {
     set_title(terminal.get_window_title());
+  }
+
+  private void command_terminated_cb(Vte.Terminal terminal, string cmdline)
+  {
+    print ("%s", cmdline);
   }
 
 } /* class Window */
